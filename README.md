@@ -420,5 +420,18 @@ Total: 156 (UNKNOWN: 0, LOW: 99, MEDIUM: 42, HIGH: 13, CRITICAL: 2)
 ## 3. Petit benchmark secu
 
 🌞 **Utilisez l'outil Docker Bench for Security**
+```
+git clone https://github.com/docker/docker-bench-security.git
+```
+```
+cd docker-bench-security/
+```
+```
+sudo sh docker-bench-security.sh
+```
+```
+Section C - Score
 
-
+[INFO] Checks: 117
+[INFO] Score: 5
+```
