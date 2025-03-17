@@ -161,6 +161,123 @@ docker build . -t my_own_nginx
 docker run -p 8888:80 my_own_nginx
 ```
 
+# Part III : `docker-compose`
+
+## 2. WikiJS
+
+🌞 **Installez un WikiJS** en utilisant Docker
+
+Docker-compose.yml ⬇️
+```
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: wiki
+      POSTGRES_PASSWORD: wikijsrocks
+      POSTGRES_USER: wikijs
+    logging:
+      driver: none
+    restart: unless-stopped
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  wiki:
+    image: ghcr.io/requarks/wiki:2
+    depends_on:
+      - db
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: wikijs
+      DB_PASS: wikijsrocks
+      DB_NAME: wiki
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+
+volumes:
+  db-data:
+```
+🌞 **Call me** when it's done
+
+✅ http://172.160.250.172/
+
+## 3. Make your own meow
+
+Dockerfile ⬇️
+
+```
+# Utiliser une image Python légère
+FROM python:3
+
+# Définir le dossier de travail à l'intérieur du conteneur
+WORKDIR /app
+
+# Copier les fichiers de l'application dans le conteneur
+COPY b2e-cloud-2024/tp/1/python-app/ /app/
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Exposer le port utilisé par l'application
+EXPOSE 8888
+
+# Lancer l'application au démarrage du conteneur
+CMD ["python", "/app/app.py"]
+```
+
+docker-compose.yml ⬇️
+```
+version: "3.8"
+
+services:
+  db:
+    image: redis:latest
+    container_name: redis-db
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  app:
+    build: .
+    container_name: mymeow-app
+    depends_on:
+      - db
+    ports:
+      - "8888:8888"
+    environment:
+      - REDIS_HOST=db
+      - REDIS_PORT=6379
+    restart: unless-stopped
+```
+
+```
+C:\Users\menan>curl http://172.160.250.172:8888/
+<h1>Add key</h1>
+<form action="/add" method = "POST">
+
+Key:
+<input type="text" name="key" >
+
+Value:
+<input type="text" name="value" >
+
+<input type="submit" value="Submit">
+</form>
+
+<h1>Check key</h1>
+<form action="/get" method = "POST">
+
+Key:
+<input type="text" name="key" >
+<input type="submit" value="Submit">
+</form>
+
+Host : adb00d3787d0
+C:\Users\menan>
+```
 
 
 
