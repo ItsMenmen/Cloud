@@ -154,11 +154,11 @@ CMD [ "apache2", "-DFOREGROUND" ]
 **Commande pour lancer le docker** ⬇️
 
 ```
-docker build . -t my_own_nginx
+docker build . -t my_own_ubuntu
 ```
 
 ```
-docker run -p 8888:80 my_own_nginx
+docker run -p 8888:80 my_own_ubuntu
 ```
 
 # Part III : `docker-compose`
@@ -279,5 +279,146 @@ Host : adb00d3787d0
 C:\Users\menan>
 ```
 
+# Part IV : Docker security
+
+🌞 **Prouvez que vous pouvez devenir `root`**
+
+```
+azureuser@machine2:~$ docker run --rm -v /:/mnt -it alpine sh
+Unable to find image 'alpine:latest' locally
+latest: Pulling from library/alpine
+f18232174bc9: Already exists
+Digest: sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c
+Status: Downloaded newer image for alpine:latest
+# whoami
+root
+```
+```
+azureuser@machine2:~$ docker run --rm -v /:/mnt -it alpine sh
+Unable to find image 'alpine:latest' locally
+latest: Pulling from library/alpine
+f18232174bc9: Already exists
+Digest: sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c
+Status: Downloaded newer image for alpine:latest
+# cat /etc/shadow
+root:*:20140:0:99999:7:::
+daemon:*:20140:0:99999:7:::
+bin:*:20140:0:99999:7:::
+sys:*:20140:0:99999:7:::
+sync:*:20140:0:99999:7:::
+games:*:20140:0:99999:7:::
+man:*:20140:0:99999:7:::
+lp:*:20140:0:99999:7:::
+mail:*:20140:0:99999:7:::
+news:*:20140:0:99999:7:::
+uucp:*:20140:0:99999:7:::
+proxy:*:20140:0:99999:7:::
+www-data:*:20140:0:99999:7:::
+backup:*:20140:0:99999:7:::
+list:*:20140:0:99999:7:::
+irc:*:20140:0:99999:7:::
+_apt:*:20140:0:99999:7:::
+nobody:*:20140:0:99999:7:::
+systemd-network:!*:20140::::::
+systemd-timesync:!*:20140::::::
+dhcpcd:!:20140::::::
+messagebus:!:20140::::::
+syslog:!:20140::::::
+systemd-resolve:!*:20140::::::
+uuidd:!:20140::::::
+tss:!:20140::::::
+sshd:!:20140::::::
+pollinate:!:20140::::::
+tcpdump:!:20140::::::
+landscape:!:20140::::::
+fwupd-refresh:!*:20140::::::
+polkitd:!*:20140::::::
+_chrony:!:20140::::::
+azureuser:!:20161:0:99999:7:::
+```
+
+## 2. Scan de vuln
+
+🌞 **Utilisez Trivy**
+  - celle de WikiJS que vous avez build
+```
+azureuser@machine2:~$ docker run aquasec/trivy image ghcr.io/requarks/wiki
+```
+```
+ghcr.io/requarks/wiki (alpine 3.21.2)
+=====================================
+Total: 28 (UNKNOWN: 2, LOW: 4, MEDIUM: 19, HIGH: 3, CRITICAL: 0)
+```
+  - celle de sa base de données
+```
+docker run aquasec/trivy image redis
+```
+```
+Report Summary
+
+┌─────────────────────┬──────────┬─────────────────┬─────────┐
+│       Target        │   Type   │ Vulnerabilities │ Secrets │
+├─────────────────────┼──────────┼─────────────────┼─────────┤
+│ redis (debian 12.9) │  debian  │       77        │    -    │
+├─────────────────────┼──────────┼─────────────────┼─────────┤
+│ usr/local/bin/gosu  │ gobinary │       58        │    -    │
+└─────────────────────┴──────────┴─────────────────┴─────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+redis (debian 12.9)
+===================
+Total: 77 (UNKNOWN: 0, LOW: 57, MEDIUM: 18, HIGH: 1, CRITICAL: 1)
+```
+  - l'image de Apache que vous avez build
+```
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image my_own_ubuntu
+```
+```
+Report Summary
+
+┌────────────────────────────────────────┬────────┬─────────────────┬─────────┐
+│                 Target                 │  Type  │ Vulnerabilities │ Secrets │
+├────────────────────────────────────────┼────────┼─────────────────┼─────────┤
+│ my_own_ubuntu (ubuntu 24.04)           │ ubuntu │       23        │    -    │
+├────────────────────────────────────────┼────────┼─────────────────┼─────────┤
+│ /etc/ssl/private/ssl-cert-snakeoil.key │  text  │        -        │    1    │
+└────────────────────────────────────────┴────────┴─────────────────┴─────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+my_own_nginx (ubuntu 24.04)
+===========================
+Total: 23 (UNKNOWN: 0, LOW: 8, MEDIUM: 15, HIGH: 0, CRITICAL: 0)
+```
+  - l'image de NGINX officielle utilisée dans la première partie
+```
+docker run aquasec/trivy image nginx
+```
+```
+Report Summary
+
+┌─────────────────────┬────────┬─────────────────┬─────────┐
+│       Target        │  Type  │ Vulnerabilities │ Secrets │
+├─────────────────────┼────────┼─────────────────┼─────────┤
+│ nginx (debian 12.9) │ debian │       156       │    -    │
+└─────────────────────┴────────┴─────────────────┴─────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+nginx (debian 12.9)
+===================
+Total: 156 (UNKNOWN: 0, LOW: 99, MEDIUM: 42, HIGH: 13, CRITICAL: 2)
+```
+
+## 3. Petit benchmark secu
+
+🌞 **Utilisez l'outil Docker Bench for Security**
 
 
