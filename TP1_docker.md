@@ -160,6 +160,10 @@ docker build . -t my_own_ubuntu
 ```
 docker run -p 8888:80 my_own_ubuntu
 ```
+```
+C:\Users\menan>curl http://172.160.250.172:8888
+EZ WIN
+```
 
 # Part III : `docker-compose`
 
@@ -203,7 +207,12 @@ volumes:
 🌞 **Call me** when it's done
 
 ✅ http://172.160.250.172/
-
+```
+menan@Menmen MINGW64 ~
+$ curl http://172.160.250.172 -s | tail -n2
+</div><p>Toc toc c'est moi</p></div></template><template slot="comments"><div><comments></comments></div></template></page></div>
+et voila toc</body></html>
+```
 ## 3. Make your own meow
 
 Dockerfile ⬇️
