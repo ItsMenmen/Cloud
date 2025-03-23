@@ -2,7 +2,7 @@
 users:
   - default
   - name: user
-    asswd: $6$je4cCvxfL/5PgBbB$xFl/qQDh6b1fSs7rvxlnkRw5e9ujt08IPXh.Aq96XPJi8x.7IcPPufCEFkCFUZg4mSUVS3y.hbxJGV19ZRzMq1
+    passwd: $6$je4cCvxfL/5PgBbB$xFl/qQDh6b1fSs7rvxlnkRw5e9ujt08IPXh.Aq96XPJi8x.7IcPPufCEFkCFUZg4mSUVS3y.hbxJGV19ZRzMq1
     sudo: sudo
     groups: sudo, docker
     shell: /bin/bash

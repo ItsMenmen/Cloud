@@ -88,11 +88,14 @@ PING 10.0.0.5 (10.0.0.5) 56(84) bytes of data.
 # Part II : cloud-init
 🌞 **Tester `cloud-init`**
 ```
-az vm create -g Efrei -n VMFINAL2 --image Ubuntu2204 --size Standard_B1s --admin-username julien --ssh-key-values "C:\Users\menan\.ssh\id_rsa.pub" --custom-data "C:\Users\menan\Documents\CoursEfrei\Cloud\cloud-init.txt" --location westeurope
+az vm create -g Efrei -n VMFINAL --image Ubuntu2204 --size Standard_B1s --custom-data "C:\Users\menan\Documents\CoursEfrei\Cloud\cloud-init.txt" --location westeurope
 ```
 ## 3. Write your own
 🌞 **Utilisez `cloud-init` pour préconfigurer la VM :**
 ```
+az vm create -g Efrei -n VMFINAL2 --image Ubuntu2204 --size Standard_B1s --custom-data "C:\Users\menan\Documents\CoursEfrei\Cloud\cloud-init.txt" --location westeurope
+```
+```yml
 #cloud-config
 users:
   - default
@@ -198,3 +201,192 @@ REPOSITORY   TAG       IMAGE ID       CREATED       SIZE
 alpine       latest    aded1e1a5b37   4 weeks ago   7.83MB
 user@VMFINAL2:~$
 ```
+
+# Part III : Terraform
+
+## 1. Introooo
+
+## 2. Copy paste
+
+## main.tf
+```
+provider "azurerm" {
+  features {}
+  subscription_id = "nop_nop"
+}
+resource "azurerm_resource_group" "main" {
+  name     = "${var.prefix}-resources"
+  location = var.location
+}
+resource "azurerm_virtual_network" "main" {
+  name                = "${var.prefix}-network"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+}
+resource "azurerm_subnet" "internal" {
+  name                 = "internal"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.2.0/24"]
+}
+resource "azurerm_public_ip" "pip" {
+  name                = "${var.prefix}-pip"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  allocation_method   = "Static"
+}
+resource "azurerm_network_interface" "main" {
+  name                = "${var.prefix}-nic1"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  ip_configuration {
+    name                          = "primary"
+    subnet_id                     = azurerm_subnet.internal.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.pip.id
+  }
+}
+resource "azurerm_network_interface" "internal" {
+  name                = "${var.prefix}-nic2"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.internal.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+resource "azurerm_network_security_group" "ssh" {
+  name                = "ssh"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  security_rule {
+    access                     = "Allow"
+    direction                  = "Inbound"
+    name                       = "ssh"
+    priority                   = 100
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    source_address_prefix      = "*"
+    destination_port_range     = "22"
+    destination_address_prefix = azurerm_network_interface.main.private_ip_address
+  }
+}
+resource "azurerm_network_interface_security_group_association" "main" {
+  network_interface_id      = azurerm_network_interface.main.id
+  network_security_group_id = azurerm_network_security_group.ssh.id
+}
+resource "azurerm_linux_virtual_machine" "main" {
+  name                            = "${var.prefix}-vm"
+  resource_group_name             = azurerm_resource_group.main.name
+  location                        = azurerm_resource_group.main.location
+  size                            = "Standard_B1s"
+  admin_username                  = "Me"
+  network_interface_ids = [
+    azurerm_network_interface.main.id,
+    azurerm_network_interface.internal.id,
+  ]
+  admin_ssh_key {
+    username   = "Me"
+    public_key = file("C:\\Users\\menan\\.ssh\\id_rsa.pub")
+  }
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts"
+    version   = "latest"
+  }
+  os_disk {
+    storage_account_type = "Standard_LRS"
+    caching              = "ReadWrite"
+  }
+}
+```
+## variables.tf
+```
+variable "prefix" {
+  description = "da prefix"
+  default = "tp2magueule"
+}
+variable "location" {
+  description = "da location"
+  default = "West Europe"
+}
+```
+
+🌞 **Constater le déploiement**
+
+- depuis la WebUI si tu veux
+- pour le compte-rendu : depuis le CLI `az`
+  - `az vm list`
+  ```
+  az>> az vm list -o table
+  Name            ResourceGroup          Location    Zones
+  --------------  ---------------------  ----------  -------
+  tp2magueule-vm  TP2MAGUEULE-RESOURCES  westeurope
+  ```
+## 3. Do it yourself
+
+🌞 **Créer un *plan Terraform* avec les contraintes suivantes**
+
+- `node1`
+  - Ubuntu 22.04
+  - 1 IP Publique
+  - 1 IP Privée
+- `node2`
+  - Ubuntu 22.04
+  - 1 IP Privée
+- les IPs privées doivent permettre aux deux machines de se `ping`
+
+⚠️⚠️⚠️ **Go changer le préfixe que vous avez choisi dans le fichier `variables.tf`** (recommandé pour chaque nouveau plan Terraform, pour pas que Azure/Terraform soient panique avec le fait d'avoir déjà créé des ressources qui portent ces noms).
+
+> Pour accéder à `node2`, il faut donc d'abord se connecter à `node1`, et effectuer une connexion SSH vers `node2`. Vous pouvez ajouter l'option `-j` de SSH pour faire ~~des dingueries~~ un rebond SSH (`-j` comme Jump). `ssh -j node1 node2` vous connectera à `node2` en passant par `node1`.
+
+## 4. cloud-iniiiiiiiiiiiiit
+
+### A. Un premier tf + cloud-init
+
+🌞 **Intégrer la gestion de `cloud-init`**
+
+- faire pop une VM Ubuntu 22.04 qui utilise `cloud-init` au premier boot
+  - on parle donc d'un plan `main.tf` qui pop qu'une seule machine
+  - vous devez ajouter une ligne pour que la machine utilise un fichier `cloud-init.txt`
+- ce `cloud-init.txt` doit faire pareil qu'à la partie précédente :
+  - installer Docker sur la machine
+  - ajoutez un user, avec un nom différent que le user créé par Azure
+    - il a un password défini
+    - clé SSH publique déposée
+    - membre du groupe `docker`
+  - l'image Docker `alpine:latest` doit être téléchargée
+
+
+🌞 **Proof !**
+
+- livrez votre `main.tf` dans le compte-rendu
+- livrez votre `cloud-init.txt` dans le compte-rendu
+- vous pouvez vous connecter sans password en SSH sur le nouveau user (ptite commande `ssh` dans le compte-rendu)
+
+### B. Go further
+
+🌞 **Moar `cloud-init` and Terraform configuration**
+
+- adaptez le plan Terraform `main.tf` et le fichier `cloud-init.txt` précédents
+- avec `cloud-init` : déposez un `docker-compose.yml` automatiquement dans la machine
+  - il doit être déposé au chemin : `/opt/wikijs/docker-compose.yml`
+  - pour le contenu, c'est le `docker-compose.yml` de la doc officielle de WikiJS (pareil qu'au TP1)
+- toujours avec `cloud-init`, le `docker-compose.yml` est automatiquement démarré
+- il faudra éditer le `docker-compose.yml` :
+  - par défaut, WikiJS écoute sur le port 3000
+  - vous devrez modifier le `docker-compose.yml` pour que **ce port soit partagé sur le port 10101 de la machine hôte**
+- côté Terraform, dans le `main.tf` :
+  - le Network Security Group associé à l'interface autorise le traffic sur le port 10101 spécifiquement
+
+🌞 **Proof !**
+
+- livrez votre `main.tf` dans le compte-rendu
+- livrez votre `cloud-init.txt` dans le compte-rendu
+- livrez votre `docker-compose.yml` dans le compte-rendu
+- vous pouvez vous connecter sur l'interface Web de WikiJS en visitant `http://IP:10101`
+  - un ptit `curl` dans le compte-rendu
+
